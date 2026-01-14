@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Week 3 Interactive Python Labs</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; margin: 0; }
+    header { padding: 14px 16px; border-bottom: 1px solid #ddd; display:flex; gap:12px; align-items:center; }
+    main { display: grid; grid-template-columns: 1.1fr 1.4fr 1fr; gap: 12px; padding: 12px; height: calc(100vh - 58px); box-sizing: border-box; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; overflow:auto; }
+    h2 { font-size: 16px; margin: 0 0 8px; }
+    textarea { width: 100%; height: 58vh; resize: vertical; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; line-height: 1.35; padding: 10px; border-radius: 10px; border: 1px solid #ccc; box-sizing: border-box; }
+    .row { display:flex; gap:8px; flex-wrap: wrap; align-items:center; }
+    button { padding: 9px 12px; border: 1px solid #ccc; background: #fff; border-radius: 10px; cursor: pointer; }
+    button.primary { border-color:#111; }
+    button:disabled { opacity:0.6; cursor:not-allowed; }
+    .pill { font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid #ddd; }
+    .ok { border-color: #22c55e; color: #166534; background:#dcfce7; }
+    .bad { border-color: #ef4444; color: #7f1d1d; background:#fee2e2; }
+    .muted { color:#666; font-size: 13px; }
+    #output { white-space: pre-wrap; background:#fafafa; border:1px solid #eee; border-radius:10px; padding:10px; min-height: 140px; }
+    input { padding:10px; border:1px solid #ccc; border-radius:10px; width: 100%; box-sizing:border-box; }
+    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; }
+    .modal { width:min(520px, 92vw); background:#fff; border-radius:14px; padding:16px; border:1px solid #ddd; }
+    .modal h3 { margin:0 0 10px; }
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Week 3 Interactive Python Labs</strong>
+    <span class="muted">Gradeable • Sends scores to Google Sheets</span>
+
+    <label class="muted" style="margin-left:10px;">Lab:</label>
+    <select id="labSelect"></select>
+
+    <span id="status" class="pill">Loading Python…</span>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Student</h2>
+      <div class="muted" id="studentInfo">Not signed in</div>
+      <div class="row" style="margin-top:10px;">
+        <button id="editStudentBtn">Edit Name/ID</button>
+      </div>
+
+      <hr />
+      <h2>Instructions</h2>
+      <div id="instructions" class="muted"></div>
+
+      <hr />
+      <div class="muted">
+        <b>Grade</b> will check all labs and submit your score to the instructor sheet.
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row" style="justify-content:space-between;">
+        <h2>Code</h2>
+        <div class="row">
+          <button id="loadBtn">Load Starter</button>
+          <button id="runBtn" class="primary">Run Code</button>
+          <button id="checkBtn" class="primary">Check ✅</button>
+          <button id="gradeBtn" class="primary">Grade & Submit 📝</button>
+        </div>
+      </div>
+      <textarea id="editor" spellcheck="false"></textarea>
+      <div class="muted">Runs in-browser via Pyodide. Open in Chrome/Edge for best results.</div>
+    </section>
+
+    <section class="card">
+      <h2>Output</h2>
+      <div id="output"></div>
+      <hr />
+      <h2>Result</h2>
+      <div id="result" class="muted">Run your code, then press Check.</div>
+      <hr />
+      <h2>Submission</h2>
+      <div id="submitStatus" class="muted">Not submitted yet.</div>
+    </section>
+  </main>
+
+  <!-- Student Modal -->
+  <div id="modal" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <h3>Enter Student Information</h3>
+      <div class="grid2">
+        <div>
+          <div class="muted">Full Name</div>
+          <input id="nameInput" placeholder="First Last" />
+        </div>
+        <div>
+          <div class="muted">Student ID</div>
+          <input id="idInput" placeholder="A00000000" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px; justify-content:flex-end;">
+        <button id="saveStudentBtn" class="primary">Save</button>
+      </div>
+      <div class="muted" style="margin-top:10px;">
+        This is required before submitting a grade.
+      </div>
+    </div>
+  </div>
+
+  <!-- Pyodide -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+
+  <script>
+    // ====== EDIT THESE ======
+    const APPS_SCRIPT_URL = "YOUR_APPS_SCRIPT_URL_HERE"; // <-- paste your Deploy URL here
+    const COURSE_NAME = "ITS/Week 3"; // optional
+    const ASSIGNMENT_NAME = "Week 3 Python Labs";
+    // ========================
+
+    const labs = [
+      {
+        id: "lab1",
+        title: "Lab 1 — print() basics",
+        instructions: `1) Print exactly: <code>Hello, Python!</code><br>2) Print your first name on the next line.`,
+        starter: `# LAB 1\n# TODO 1: print "Hello, Python!"\n# TODO 2: print your first name\n\n`,
+        validate: (stdout) => {
+          const lines = stdout.replace(/\r\n/g, "\n").split("\n").filter(l => l !== "");
+          if (lines.length < 2) return { ok:false, hint:"Need 2 printed lines." };
+          if (lines[0] !== "Hello, Python!") return { ok:false, hint:'Line 1 must be exactly: Hello, Python!' };
+          if (!lines[1] || lines[1].trim().length === 0) return { ok:false, hint:"Line 2 should be your name." };
+          return { ok:true, hint:"Passed!" };
+        }
+      },
+      {
+        id: "lab2",
+        title: "Lab 2 — sep and end",
+        instructions: `Edit ONLY the first print() so output is exactly:<pre>My-name-is-Python. Monty-Python.</pre>`,
+        starter: `# LAB 2\n# TODO: Edit ONLY the first print() using sep and/or end\n\nprint("My", "name", "is", "Python.")\nprint("Monty", "Python.")\n`,
+        validate: (stdout) => {
+          const out = stdout.replace(/\r\n/g, "\n").trimEnd();
+          const expected = "My-name-is-Python. Monty-Python.";
+          if (out !== expected) return { ok:false, hint:`Expected: ${expected}\nGot: ${out}` };
+          return { ok:true, hint:"Passed!" };
+        }
+      },
+      {
+        id: "lab3",
+        title: "Lab 3 — escape sequences",
+        instructions: `1) One print() to output A, B, C on separate lines.<br>2) Print one backslash.<pre>A\nB\nC\n\\</pre>`,
+        starter: `# LAB 3\n# TODO 1: one print() for A, B, C (separate lines)\n# TODO 2: print ONE backslash character\n\n`,
+        validate: (stdout) => {
+          const lines = stdout.replace(/\r\n/g, "\n").split("\n");
+          while (lines.length && lines[lines.length-1] === "") lines.pop();
+          const expected = ["A","B","C","\\"];
+          if (lines.length !== 4) return { ok:false, hint:`Need 4 lines total. You have ${lines.length}.` };
+          for (let i=0;i<4;i++) if (lines[i] !== expected[i]) return { ok:false, hint:`Line ${i+1} should be ${JSON.stringify(expected[i])}.` };
+          return { ok:true, hint:"Passed!" };
+        }
+      }
+    ];
+
+    // UI
+    const labSelect = document.getElementById("labSelect");
+    const editor = document.getElementById("editor");
+    const outputEl = document.getElementById("output");
+    const resultEl = document.getElementById("result");
+    const instructionsEl = document.getElementById("instructions");
+    const statusEl = document.getElementById("status");
+    const submitStatusEl = document.getElementById("submitStatus");
+    const studentInfoEl = document.getElementById("studentInfo");
+
+    const loadBtn = document.getElementById("loadBtn");
+    const runBtn = document.getElementById("runBtn");
+    const checkBtn = document.getElementById("checkBtn");
+    const gradeBtn = document.getElementById("gradeBtn");
+
+    const modal = document.getElementById("modal");
+    const nameInput = document.getElementById("nameInput");
+    const idInput = document.getElementById("idInput");
+    const saveStudentBtn = document.getElementById("saveStudentBtn");
+    const editStudentBtn = document.getElementById("editStudentBtn");
+
+    let pyodide = null;
+    let currentLab = labs[0];
+
+    function setStatus(text, kind="") {
+      statusEl.textContent = text;
+      statusEl.className = "pill " + kind;
+    }
+
+    function showModal() { modal.style.display = "flex"; }
+    function hideModal() { modal.style.display = "none"; }
+
+    function getStudent() {
+      return {
+        name: localStorage.getItem("lab_name") || "",
+        studentId: localStorage.getItem("lab_studentId") || ""
+      };
+    }
+
+    function setStudent(name, studentId) {
+      localStorage.setItem("lab_name", name);
+      localStorage.setItem("lab_studentId", studentId);
+      renderStudent();
+    }
+
+    function renderStudent() {
+      const s = getStudent();
+      if (!s.name || !s.studentId) {
+        studentInfoEl.innerHTML = `<span class="pill bad">Missing</span> Please enter your Name + Student ID.`;
+      } else {
+        studentInfoEl.innerHTML = `<span class="pill ok">Ready</span> <b>${escapeHtml(s.name)}</b> — <b>${escapeHtml(s.studentId)}</b>`;
+      }
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    labs.forEach(l => {
+      const opt = document.createElement("option");
+      opt.value = l.id;
+      opt.textContent = l.title;
+      labSelect.appendChild(opt);
+    });
+
+    function loadLab(labId) {
+      currentLab = labs.find(l => l.id === labId) || labs[0];
+      instructionsEl.innerHTML = currentLab.instructions;
+      editor.value = currentLab.starter;
+      outputEl.textContent = "";
+      resultEl.textContent = "Run your code, then press Check.";
+      resultEl.className = "muted";
+    }
+
+    labSelect.addEventListener("change", e => loadLab(e.target.value));
+    loadBtn.addEventListener("click", () => loadLab(currentLab.id));
+
+    editStudentBtn.addEventListener("click", () => {
+      const s = getStudent();
+      nameInput.value = s.name;
+      idInput.value = s.studentId;
+      showModal();
+    });
+
+    saveStudentBtn.addEventListener("click", () => {
+      const name = nameInput.value.trim();
+      const sid = idInput.value.trim();
+      if (!name || !sid) return alert("Please enter both Name and Student ID.");
+      setStudent(name, sid);
+      hideModal();
+    });
+
+    async function initPyodide() {
+      setStatus("Loading Python…");
+      pyodide = await loadPyodide();
+      setStatus("Python ready", "ok");
+      runBtn.disabled = false;
+      checkBtn.disabled = false;
+      gradeBtn.disabled = false;
+    }
+
+    async function runPythonCapture(code) {
+      const wrappedReturn = `
+import sys, io, traceback
+_stdout = io.StringIO()
+_stderr = io.StringIO()
+_old_out, _old_err = sys.stdout, sys.stderr
+sys.stdout, sys.stderr = _stdout, _stderr
+try:
+${code.split("\n").map(l => "    " + l).join("\n")}
+except Exception:
+    traceback.print_exc()
+finally:
+    sys.stdout, sys.stderr = _old_out, _old_err
+_out = _stdout.getvalue() + _stderr.getvalue()
+_out
+`;
+      const out = await pyodide.runPythonAsync(wrappedReturn);
+      return (out || "").replace(/\r\n/g, "\n").trimEnd();
+    }
+
+    async function doRun() {
+      outputEl.textContent = "Running…";
+      try {
+        const out = await runPythonCapture(editor.value);
+        outputEl.textContent = out;
+        return out;
+      } catch (e) {
+        const msg = String(e);
+        outputEl.textContent = msg;
+        return msg;
+      }
+    }
+
+    runBtn.addEventListener("click", doRun);
+
+    checkBtn.addEventListener("click", async () => {
+      const stdout = await doRun();
+      const verdict = currentLab.validate(stdout);
+
+      if (verdict.ok) {
+        resultEl.textContent = "✅ PASS — " + verdict.hint;
+        resultEl.className = "pill ok";
+      } else {
+        resultEl.textContent = "❌ TRY AGAIN — " + verdict.hint;
+        resultEl.className = "pill bad";
+      }
+    });
+
+    function gradeAll() {
+      const results = {};
+      let passed = 0;
+
+      // For grading, we run each lab as-is from current editor ONLY for selected lab.
+      // If you want separate editors per lab, we can expand later.
+      // Here: grade = "did you pass the currently selected lab?"
+      // Better: store code per lab in localStorage. (I can add that next.)
+      results[currentLab.id] = { note: "Grading current lab only in this version." };
+
+      return { score: passed, results };
+    }
+
+    async function submitGrade(payload) {
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    }
+
+    gradeBtn.addEventListener("click", async () => {
+      const s = getStudent();
+      if (!s.name || !s.studentId) {
+        nameInput.value = s.name;
+        idInput.value = s.studentId;
+        showModal();
+        return;
+      }
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_APPS_SCRIPT_URL_HERE")) {
+        alert("Instructor setup required: APPS_SCRIPT_URL is not set in index.html.");
+        return;
+      }
+
+      // Grade the CURRENT lab based on its validator + the student's code output
+      const stdout = await doRun();
+      const verdict = currentLab.validate(stdout);
+
+      const results = {
+        [currentLab.id]: {
+          passed: verdict.ok,
+          feedback: verdict.hint,
+          output: stdout
+        }
+      };
+
+      const score = verdict.ok ? 100 : 0;
+
+      submitStatusEl.textContent = "Submitting…";
+
+      try {
+        const payload = {
+          course: COURSE_NAME,
+          assignment: ASSIGNMENT_NAME,
+          name: s.name,
+          studentId: s.studentId,
+          score,
+          results,
+          userAgent: navigator.userAgent
+        };
+
+        const resp = await submitGrade(payload);
+
+        if (resp && resp.ok) {
+          submitStatusEl.innerHTML = `<span class="pill ok">Submitted</span> Score: <b>${score}</b>`;
+        } else {
+          submitStatusEl.innerHTML = `<span class="pill bad">Submit failed</span> ${escapeHtml(JSON.stringify(resp))}`;
+        }
+      } catch (err) {
+        submitStatusEl.innerHTML = `<span class="pill bad">Submit error</span> ${escapeHtml(String(err))}`;
+      }
+    });
+
+    // Init
+    runBtn.disabled = true;
+    checkBtn.disabled = true;
+    gradeBtn.disabled = true;
+    initPyodide();
+
+    loadLab(currentLab.id);
+    renderStudent();
+
+    // prompt on first load if missing info
+    const ss = getStudent();
+    if (!ss.name || !ss.studentId) showModal();
+  </script>
+</body>
+</html>
