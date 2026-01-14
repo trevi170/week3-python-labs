@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Week 3 Interactive Python Labs</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; margin: 0; }
+    header { padding: 14px 16px; border-bottom: 1px solid #ddd; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    main { display: grid; grid-template-columns: 1.1fr 1.4fr 1fr; gap: 12px; padding: 12px; height: calc(100vh - 62px); box-sizing: border-box; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; overflow:auto; }
+    h2 { font-size: 16px; margin: 0 0 8px; }
+    textarea { width: 100%; height: 54vh; resize: vertical; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; line-height: 1.35; padding: 10px; border-radius: 10px; border: 1px solid #ccc; box-sizing: border-box; }
+    .row { display:flex; gap:8px; flex-wrap: wrap; align-items:center; }
+    button { padding: 9px 12px; border: 1px solid #ccc; background: #fff; border-radius: 10px; cursor: pointer; }
+    button.primary { border-color:#111; }
+    button:disabled { opacity:0.6; cursor:not-allowed; }
+    .pill { font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid #ddd; }
+    .ok { border-color: #22c55e; color: #166534; background:#dcfce7; }
+    .bad { border-color: #ef4444; color: #7f1d1d; background:#fee2e2; }
+    .muted { color:#666; font-size: 13px; }
+    #output { white-space: pre-wrap; background:#fafafa; border:1px solid #eee; border-radius:10px; padding:10px; min-height: 140px; }
+    input { padding:10px; border:1px solid #ccc; border-radius:10px; width: 100%; box-sizing:border-box; }
+    select { padding:8px 10px; border-radius:10px; border:1px solid #ccc; }
+    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; }
+    .modal { width:min(560px, 92vw); background:#fff; border-radius:14px; padding:16px; border:1px solid #ddd; }
+    .modal h3 { margin:0 0 10px; }
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    pre { white-space: pre-wrap; }
+    .scoreline { display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid #f0f0f0; }
+    .scoreline:last-child { border-bottom:0; }
+    .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+    .tiny { font-size:12px; color:#777; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Week 3 Interactive Python Labs</strong>
+    <span class="muted">Gradeable • Runs in your browser</span>
+
+    <label class="muted" style="margin-left:10px;">Lab:</label>
+    <select id="labSelect"></select>
+
+    <span id="status" class="pill">Loading Python…</span>
+    <span id="quickTotal" class="pill" style="margin-left:auto;">Total: —</span>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Student</h2>
+      <div class="muted" id="studentInfo">Not signed in</div>
+      <div class="row" style="margin-top:10px;">
+        <button id="editStudentBtn">Edit Name/ID</button>
+        <button id="clearWorkBtn">Clear My Saved Work</button>
+      </div>
+
+      <hr />
+      <h2>Instructions</h2>
+      <div id="instructions" class="muted"></div>
+
+      <hr />
+      <h2>Scores (last grade run)</h2>
+      <div id="scoreBoard" class="muted">Click <b>Grade & Submit</b> to calculate scores.</div>
+      <div class="tiny" style="margin-top:10px;">
+        Tip: Your code is auto-saved per lab on this computer/browser.
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row" style="justify-content:space-between;">
+        <h2>Code</h2>
+        <div class="row">
+          <button id="loadBtn">Load Starter</button>
+          <button id="runBtn" class="primary">Run Code</button>
+          <button id="checkBtn" class="primary">Check ✅</button>
+          <button id="gradeBtn" class="primary">Grade & Submit 📝</button>
+        </div>
+      </div>
+
+      <textarea id="editor" spellcheck="false"></textarea>
+
+      <div class="row">
+        <span class="muted">Runs in-browser via Pyodide.</span>
+        <span id="autosaveStatus" class="pill">Autosave: on</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Output</h2>
+      <div id="output"></div>
+
+      <hr />
+      <h2>Result</h2>
+      <div id="result" class="muted">Run your code, then press Check.</div>
+
+      <hr />
+      <h2>Help / How to Fix</h2>
+      <div id="helpBox" class="muted">If you fail a check, steps to fix will appear here.</div>
+
+      <hr />
+      <h2>Submission</h2>
+      <div id="submitStatus" class="muted">Not submitted yet.</div>
+    </section>
+  </main>
+
+  <!-- Student Modal -->
+  <div id="modal" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <h3>Enter Student Information</h3>
+      <div class="grid2">
+        <div>
+          <div class="muted">Full Name</div>
+          <input id="nameInput" placeholder="First Last" />
+        </div>
+        <div>
+          <div class="muted">Student ID</div>
+          <input id="idInput" placeholder="A00000000" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px; justify-content:flex-end;">
+        <button id="saveStudentBtn" class="primary">Save</button>
+      </div>
+      <div class="muted" style="margin-top:10px;">
+        Required before submitting a grade.
+      </div>
+    </div>
+  </div>
+
+  <!-- Pyodide -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+
+  <script>
+    // =========================
+    //  INSTRUCTOR SETTINGS
+    // =========================
+    const APPS_SCRIPT_URL = "YOUR_APPS_SCRIPT_URL_HERE"; // <-- paste your Apps Script Web App URL
+    const COURSE_NAME = "Week 3";
+    const ASSIGNMENT_NAME = "Week 3 Python Labs";
+    // =========================
+
+    // ---------- DOM ----------
+    const labSelect = document.getElementById("labSelect");
+    const editor = document.getElementById("editor");
+    const outputEl = document.getElementById("output");
+    const resultEl = document.getElementById("result");
+    const instructionsEl = document.getElementById("instructions");
+    const statusEl = document.getElementById("status");
+    const submitStatusEl = document.getElementById("submitStatus");
+    const studentInfoEl = document.getElementById("studentInfo");
+    const helpBox = document.getElementById("helpBox");
+    const scoreBoard = document.getElementById("scoreBoard");
+    const quickTotal = document.getElementById("quickTotal");
+    const autosaveStatus = document.getElementById("autosaveStatus");
+
+    const loadBtn = document.getElementById("loadBtn");
+    const runBtn = document.getElementById("runBtn");
+    const checkBtn = document.getElementById("checkBtn");
+    const gradeBtn = document.getElementById("gradeBtn");
+    const editStudentBtn = document.getElementById("editStudentBtn");
+    const clearWorkBtn = document.getElementById("clearWorkBtn");
+
+    const modal = document.getElementById("modal");
+    const nameInput = document.getElementById("nameInput");
+    const idInput = document.getElementById("idInput");
+    const saveStudentBtn = document.getElementById("saveStudentBtn");
+
+    let pyodide = null;
+    let currentLabId = null;
+
+    // ---------- UTIL ----------
+    function setStatus(text, kind="") {
+      statusEl.textContent = text;
+      statusEl.className = "pill " + kind;
+    }
+    function showModal() { modal.style.display = "flex"; }
+    function hideModal() { modal.style.display = "none"; }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    function showWhitespace(s) {
+      return String(s)
+        .replace(/\r\n/g, "\n")
+        .replace(/ /g, "·")
+        .replace(/\t/g, "→")
+        .replace(/\n/g, "⏎\n");
+    }
+
+    function setHelp(title, steps, expected=null, got=null, extra=null) {
+      let html = `<div style="font-weight:bold;margin-bottom:6px;">${escapeHtml(title)}</div>`;
+      html += "<ol style='margin:0;padding-left:18px;'>";
+      for (const step of steps) html += `<li>${step}</li>`;
+      html += "</ol>";
+
+      if (extra) html += `<div style="margin-top:10px;" class="tiny">${extra}</div>`;
+
+      if (expected !== null && got !== null) {
+        html += `
+          <div style="margin-top:10px;">
+            <div style="font-weight:bold;">Compare (spaces/newlines shown)</div>
+            <div style="margin-top:6px;"><b>Expected:</b></div>
+            <pre style="white-space:pre-wrap;background:#fafafa;border:1px solid #eee;border-radius:10px;padding:10px;">${escapeHtml(showWhitespace(expected))}</pre>
+            <div style="margin-top:6px;"><b>Got:</b></div>
+            <pre style="white-space:pre-wrap;background:#fafafa;border:1px solid #eee;border-radius:10px;padding:10px;">${escapeHtml(showWhitespace(got))}</pre>
+          </div>
+        `;
+      }
+      helpBox.innerHTML = html;
+    }
+
+    function clearHelp() {
+      helpBox.textContent = "✅ Nice work. If you fail a check, steps to fix will appear here.";
+    }
+
+    // ---------- STUDENT INFO ----------
+    function getStudent() {
+      return {
+        name: localStorage.getItem("lab_name") || "",
+        studentId: localStorage.getItem("lab_studentId") || ""
+      };
+    }
+
+    function setStudent(name, studentId) {
+      localStorage.setItem("lab_name", name);
+      localStorage.setItem("lab_studentId", studentId);
+      renderStudent();
+    }
+
+    function renderStudent() {
+      const s = getStudent();
+      if (!s.name || !s.studentId) {
+        studentInfoEl.innerHTML = `<span class="pill bad">Missing</span> Please enter your Name + Student ID.`;
+      } else {
+        studentInfoEl.innerHTML = `<span class="pill ok">Ready</span> <b>${escapeHtml(s.name)}</b> — <b>${escapeHtml(s.studentId)}</b>`;
+      }
+    }
+
+    // ---------- AUTOSAVE PER LAB ----------
+    function codeKey(labId) { return `code_${labId}`; }
+    function triesKey(labId) { return `tries_${labId}`; }
+    function getSavedCode(labId) { return localStorage.getItem(codeKey(labId)) || ""; }
+    function setSavedCode(labId, code) { localStorage.setItem(codeKey(labId), code); }
+
+    function getTries(labId) { return parseInt(localStorage.getItem(triesKey(labId)) || "0", 10); }
+    function incTries(labId) { localStorage.setItem(triesKey(labId), String(getTries(labId) + 1)); }
+    function resetTries(labId) { localStorage.setItem(triesKey(labId), "0"); }
+
+    function persistCurrent() {
+      if (!currentLabId) return;
+      setSavedCode(currentLabId, editor.value);
+    }
+
+    // ---------- PYODIDE ----------
+    async function initPyodide() {
+      setStatus("Loading Python…");
+      pyodide = await loadPyodide();
+      setStatus("Python ready", "ok");
+      runBtn.disabled = false;
+      checkBtn.disabled = false;
+      gradeBtn.disabled = false;
+    }
+
+    // IMPORTANT: return JSON string from Python, then JSON.parse in JS (reliable)
+    async function runPythonCapture(studentCode, testCode = "") {
+      const wrapped = `
+import sys, io, traceback, json
+_stdout = io.StringIO()
+_stderr = io.StringIO()
+_old_out, _old_err = sys.stdout, sys.stderr
+sys.stdout, sys.stderr = _stdout, _stderr
+_err = ""
+try:
+${studentCode.split("\n").map(l => "    " + l).join("\n")}
+${testCode ? testCode.split("\n").map(l => "    " + l).join("\n") : ""}
+except Exception:
+    _err = traceback.format_exc()
+finally:
+    sys.stdout, sys.stderr = _old_out, _old_err
+json.dumps({"stdout": _stdout.getvalue(), "stderr": _stderr.getvalue(), "error": _err})
+`;
+      const jsonText = await pyodide.runPythonAsync(wrapped);
+      const obj = JSON.parse(jsonText);
+      return {
+        stdout: String(obj.stdout || "").replace(/\r\n/g, "\n").trimEnd(),
+        stderr: String(obj.stderr || "").replace(/\r\n/g, "\n").trimEnd(),
+        error:  String(obj.error  || "").replace(/\r\n/g, "\n").trimEnd()
+      };
+    }
+
+    async function doRun() {
+      outputEl.textContent = "Running…";
+      try {
+        const out = await runPythonCapture(editor.value);
+        const combined = [out.stdout, out.stderr, out.error].filter(Boolean).join("\n");
+        outputEl.textContent = combined || "";
+        return out;
+      } catch (e) {
+        const msg = String(e);
+        outputEl.textContent = msg;
+        return { stdout:"", stderr:"", error: msg };
+      }
+    }
+
+    // ---------- LABS ----------
+    const labs = [
+      {
+        id:"lab1",
+        title:"Lab 1 — print() basics",
+        instructions:`<b>Print exactly:</b><pre>Hello, Python!\nYourName</pre>`,
+        starter:`# LAB 1\n# TODO 1: print "Hello, Python!"\n# TODO 2: print your first name\n\n`,
+        validate: async (code) => {
+          const out = await runPythonCapture(code);
+          const raw = [out.stdout, out.stderr, out.error].filter(Boolean).join("\n").trimEnd();
+          const lines = out.stdout.split("\n").filter(l => l !== "");
+
+          if (out.error) return { ok:false, expected:"No error", got: out.error, helpTitle:"Fix Lab 1 (Error)", helpSteps:[
+            "Use print(...) with parentheses.",
+            "Put text in quotes: print(\"Hello, Python!\")",
+            "Run again."
+          ]};
+
+          if (lines.length < 2) return { ok:false, expected:"Hello, Python!\\nYourName", got: raw, helpTitle:"Fix Lab 1", helpSteps:[
+            "You need TWO print() lines.",
+            "First line must be exactly: Hello, Python!",
+            "Second line must print your name (in quotes)."
+          ]};
+
+          if (lines[0] !== "Hello, Python!") return { ok:false, expected:"Hello, Python!", got: lines[0]||"", helpTitle:"Fix Line 1", helpSteps:[
+            "Type it exactly: Hello, Python!",
+            "No extra spaces.",
+            "Use quotes: print(\"Hello, Python!\")"
+          ]};
+
+          if (!lines[1] || lines[1].trim().length===0) return { ok:false, expected:"YourName", got: lines[1]??"", helpTitle:"Fix Line 2", helpSteps:[
+            "Print your name in quotes.",
+            "Example: print(\"Hector\")",
+            "Run again."
+          ]};
+
+          return { ok:true, feedback:"Passed!" };
+        }
+      },
+
+      {
+        id:"lab2",
+        title:"Lab 2 — sep and end",
+        instructions:`Make output exactly:<pre>My-name-is-Python. Monty-Python.</pre>Only edit the first print().`,
+        starter:`# LAB 2\n# TODO: Edit ONLY the first print() using sep and/or end\n\nprint("My", "name", "is", "Python.")\nprint("Monty", "Python.")\n`,
+        validate: async (code) => {
+          const out = await runPythonCapture(code);
+          const got = out.stdout.trimEnd();
+          const expected = "My-name-is-Python. Monty-Python.";
+
+          if (out.error) return { ok:false, expected:"No error", got: out.error, helpTitle:"Fix Lab 2 (Error)", helpSteps:[
+            "Only edit the FIRST print().",
+            "Try sep='-' and end=' '",
+            "Keep the second print unchanged."
+          ]};
+
+          if (got !== expected) {
+            const tries = getTries("lab2");
+            return {
+              ok:false, expected, got,
+              helpTitle:"Fix Lab 2 (sep/end)",
+              helpSteps:[
+                "Use sep='-' so words join with dashes.",
+                "Use end=' ' to keep the next print on the same line.",
+                "Do NOT change the second print()."
+              ],
+              extra: tries>=2 ? "Hint: First print should use sep='-' and end=' ' (space)." : null
+            };
+          }
+
+          return { ok:true, feedback:"Passed!" };
+        }
+      },
+
+      {
+        id:"lab3",
+        title:"Lab 3 — escape sequences",
+        instructions:`Expected output:<pre>A\nB\nC\n\\</pre>Use \\n and then print one backslash.`,
+        starter:`# LAB 3\n# TODO 1: one print() for A, B, C (separate lines)\n# TODO 2: print ONE backslash character\n\n`,
+        validate: async (code) => {
+          const out = await runPythonCapture(code);
+          const got = out.stdout.trimEnd();
+          const expected = "A\nB\nC\n\\";
+
+          if (out.error) return { ok:false, expected:"No error", got: out.error, helpTitle:"Fix Lab 3 (Error)", helpSteps:[
+            "Use quotes correctly.",
+            "To print one backslash: print(\"\\\\\")",
+            "Try again."
+          ]};
+
+          if (got !== expected) {
+            const tries = getTries("lab3");
+            return {
+              ok:false, expected, got,
+              helpTitle:"Fix Lab 3 (escapes)",
+              helpSteps:[
+                "First print should look like: print(\"A\\nB\\nC\")",
+                "Second print should be: print(\"\\\\\")",
+                "Make sure you don’t print extra blank lines."
+              ],
+              extra: tries>=2 ? "Hint: backslash must be escaped inside quotes: \"\\\\\"" : null
+            };
+          }
+
+          return { ok:true, feedback:"Passed!" };
+        }
+      },
+
+      {
+        id:"lab4",
+        title:"Lab 4 — literals (octal/hex/float)",
+        instructions:`Set: a=83 (octal), b=291 (hex), c=0.4 (float), d=300000000.0 (scientific).`,
+        starter:`# LAB 4\n# TODO: replace None with correct literals (no quotes)\n\na = None\nb = None\nc = None\nd = None\n\nprint(a, b, c, d)\n`,
+        validate: async (code) => {
+          const testCode = `
+assert isinstance(a, int) and a == 83, "a must be int 83 (octal example: 0o123)"
+assert isinstance(b, int) and b == 291, "b must be int 291 (hex example: 0x123)"
+assert isinstance(c, float) and abs(c - 0.4) < 1e-12, "c must be float 0.4 (example: .4)"
+assert isinstance(d, float) and abs(d - 300000000.0) < 1e-6, "d must be float 300000000.0 (example: 3e8)"
+`;
+          const out = await runPythonCapture(code, testCode);
+          const combined = [out.stdout, out.stderr, out.error].filter(Boolean).join("\n").trimEnd();
+
+          if (out.error) {
+            const tries = getTries("lab4");
+            return {
+              ok:false, expected:"All tests pass", got: combined,
+              helpTitle:"Fix Lab 4 (literals)",
+              helpSteps:[
+                "Do NOT put quotes around numbers.",
+                "Octal starts with 0o (example 0o123).",
+                "Hex starts with 0x (example 0x123).",
+                "Scientific notation uses e (example 3e8)."
+              ],
+              extra: tries>=2 ? "Examples: a=0o123, b=0x123, c=.4, d=3e8" : null
+            };
+          }
+
+          return { ok:true, feedback:"Passed!" };
+        }
+      },
+
+      {
+        id:"lab5",
+        title:"Lab 5 — strings quotes/escaping",
+        instructions:`Print exactly 3 lines:<pre>I like "Monty Python"\nI'm Monty Python.\n\n</pre>(Third line is blank)`,
+        starter:`# LAB 5\n# TODO: print the 3 required outputs (exactly)\n\n`,
+        validate: async (code) => {
+          const out = await runPythonCapture(code);
+          const got = out.stdout.replace(/\r\n/g, "\n");
+          const expected = 'I like "Monty Python"\\nI\\'m Monty Python.\\n\\n';
+
+          if (out.error) return { ok:false, expected:"No error", got: out.error, helpTitle:"Fix Lab 5 (Error)", helpSteps:[
+            "Make sure your quotes match.",
+            "Line 2 must include the apostrophe in I'm.",
+            "Line 3 must be blank: print(\"\")"
+          ]};
+
+          if (got !== expected) {
+            const tries = getTries("lab5");
+            return {
+              ok:false, expected, got,
+              helpTitle:"Fix Lab 5 (quotes)",
+              helpSteps:[
+                "Line 1 must include double quotes around Monty Python.",
+                "Line 2 must print I'm (apostrophe included).",
+                "Line 3 must be blank (print an empty string)."
+              ],
+              extra: tries>=2 ? "Hint: print('I like \"Monty Python\"') then print(\"I'm Monty Python.\") then print(\"\")" : null
+            };
+          }
+
+          return { ok:true, feedback:"Passed!" };
+        }
+      },
+
+      {
+        id:"lab6",
+        title:"Lab 6 — booleans comparison",
+        instructions:`Print exactly:<pre>True\nFalse</pre>Use True > False and True < False.`,
+        starter:`# LAB 6\n# TODO: print the two lines exactly:\n# True\n# False\n\n`,
+        validate: async (code) => {
+          const out = await runPythonCapture(code);
+          const got = out.stdout.trimEnd();
+          const expected = "True\nFalse";
+
+          if (out.error) return { ok:false, expected:"No error", got: out.error, helpTitle:"Fix Lab 6 (Error)", helpSteps:[
+            "Use print(...) with parentheses.",
+            "Try: print(True > False) then print(True < False)"
+          ]};
+
+          if (got !== expected) {
+            const tries = getTries("lab6");
+            return {
+              ok:false, expected, got,
+              helpTitle:"Fix Lab 6 (booleans)",
+              helpSteps:[
+                "Use exactly: print(True > False)",
+                "Then: print(True < False)",
+                "Do not print extra text."
+              ],
+              extra: tries>=2 ? "Hint: True behaves like 1 and False like 0 in comparisons." : null
+            };
+          }
+
+          return { ok:true, feedback:"Passed!" };
+        }
+      }
+    ];
+
+    // ---------- UI HELPERS ----------
+    function populateLabSelect() {
+      labSelect.innerHTML = "";
+      for (const lab of labs) {
+        const opt = document.createElement("option");
+        opt.value = lab.id;
+        opt.textContent = lab.title;
+        labSelect.appendChild(opt);
+      }
+    }
+
+    function loadLab(labId) {
+      persistCurrent();
+      currentLabId = labId;
+
+      const lab = labs.find(l => l.id === labId);
+      instructionsEl.innerHTML = lab.instructions;
+
+      const saved = getSavedCode(labId);
+      editor.value = saved ? saved : lab.starter;
+
+      outputEl.textContent = "";
+      resultEl.textContent = "Run your code, then press Check.";
+      resultEl.className = "muted";
+      clearHelp();
+      autosaveStatus.textContent = "Autosave: on";
+    }
+
+    // ---------- AUTOSAVE ----------
+    editor.addEventListener("input", () => {
+      if (!currentLabId) return;
+      setSavedCode(currentLabId, editor.value);
+      autosaveStatus.textContent = "Autosave: saved";
+      setTimeout(() => autosaveStatus.textContent = "Autosave: on", 600);
+    });
+
+    labSelect.addEventListener("change", e => loadLab(e.target.value));
+
+    loadBtn.addEventListener("click", () => {
+      const lab = labs.find(l => l.id === currentLabId);
+      editor.value = lab.starter;
+      setSavedCode(currentLabId, editor.value);
+      resetTries(currentLabId);
+      clearHelp();
+      resultEl.textContent = "Starter loaded. Now try again.";
+      resultEl.className = "muted";
+    });
+
+    runBtn.addEventListener("click", doRun);
+
+    checkBtn.addEventListener("click", async () => {
+      const lab = labs.find(l => l.id === currentLabId);
+      const code = editor.value;
+
+      const verdict = await lab.validate(code);
+
+      if (verdict.ok) {
+        resultEl.textContent = "✅ PASS — " + (verdict.feedback || "Passed!");
+        resultEl.className = "pill ok";
+        resetTries(currentLabId);
+        clearHelp();
+      } else {
+        incTries(currentLabId);
+        resultEl.textContent = "❌ TRY AGAIN — Fix the issues below.";
+        resultEl.className = "pill bad";
+        setHelp(
+          verdict.helpTitle || "How to Fix",
+          verdict.helpSteps || ["Compare your output to the expected output and try again."],
+          verdict.expected ?? null,
+          verdict.got ?? null,
+          verdict.extra ?? null
+        );
+      }
+    });
+
+    // ---------- SCOREBOARD ----------
+    function renderScoreBoard(summary) {
+      if (!summary) {
+        scoreBoard.innerHTML = "Click <b>Grade & Submit</b> to calculate scores.";
+        quickTotal.textContent = "Total: —";
+        quickTotal.className = "pill";
+        return;
+      }
+
+      const rows = [];
+      for (const lab of labs) {
+        const r = summary.byLab[lab.id];
+        rows.push(`
+          <div class="scoreline">
+            <div>
+              <b>${escapeHtml(lab.title)}</b>
+              <div class="tiny">${r.passed ? "PASS" : "NOT YET"}</div>
+            </div>
+            <div class="mono">${r.pointsEarned.toFixed(1)} / ${r.pointsMax.toFixed(1)}</div>
+          </div>
+        `);
+      }
+
+      scoreBoard.innerHTML = `
+        <div class="scoreline">
+          <div><b>Total</b></div>
+          <div class="mono"><b>${summary.total.toFixed(1)} / 100.0</b></div>
+        </div>
+        <div style="margin-top:10px;">${rows.join("")}</div>
+      `;
+
+      quickTotal.textContent = `Total: ${summary.total.toFixed(1)} / 100`;
+      quickTotal.className = "pill " + (summary.total >= 70 ? "ok" : "bad");
+    }
+
+    async function gradeAllLabs() {
+      const byLab = {};
+      const pointsEach = 100 / labs.length;
+      let total = 0;
+
+      for (const lab of labs) {
+        const code = getSavedCode(lab.id) || "";
+        let verdict;
+
+        if (!code.trim()) {
+          verdict = {
+            ok:false,
+            helpTitle:`${lab.title} is empty`,
+            helpSteps:[
+              "Select this lab from the dropdown.",
+              "Click Load Starter.",
+              "Complete it and click Check."
+            ],
+            expected:"Completed solution",
+            got:"(no code)"
+          };
+        } else {
+          verdict = await lab.validate(code);
+        }
+
+        const passed = !!verdict.ok;
+        const earned = passed ? pointsEach : 0;
+
+        byLab[lab.id] = {
+          passed,
+          pointsEarned: earned,
+          pointsMax: pointsEach
+        };
+
+        total += earned;
+      }
+
+      total = Math.round(total * 10) / 10;
+      return { total, byLab };
+    }
+
+    async function submitGrade(payload) {
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    }
+
+    gradeBtn.addEventListener("click", async () => {
+      const s = getStudent();
+      if (!s.name || !s.studentId) {
+        nameInput.value = s.name;
+        idInput.value = s.studentId;
+        showModal();
+        return;
+      }
+
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_APPS_SCRIPT_URL_HERE")) {
+        alert("Instructor setup required: paste your APPS_SCRIPT_URL in index.html.");
+        return;
+      }
+
+      submitStatusEl.textContent = "Grading all labs…";
+      gradeBtn.disabled = true;
+
+      try {
+        const summary = await gradeAllLabs();
+        renderScoreBoard(summary);
+
+        const resultsForSheet = {};
+        for (const lab of labs) {
+          const r = summary.byLab[lab.id];
+          resultsForSheet[lab.id] = {
+            title: lab.title,
+            passed: r.passed,
+            pointsEarned: r.pointsEarned,
+            pointsMax: r.pointsMax
+          };
+        }
+
+        submitStatusEl.textContent = "Submitting to instructor sheet…";
+
+        const payload = {
+          course: COURSE_NAME,
+          assignment: ASSIGNMENT_NAME,
+          name: s.name,
+          studentId: s.studentId,
+          score: summary.total,
+          results: resultsForSheet,
+          userAgent: navigator.userAgent
+        };
+
+        const resp = await submitGrade(payload);
+
+        if (resp && resp.ok) {
+          submitStatusEl.innerHTML = `<span class="pill ok">Submitted</span> Total: <b>${summary.total.toFixed(1)}</b> / 100`;
+        } else {
+          submitStatusEl.innerHTML = `<span class="pill bad">Submit failed</span> ${escapeHtml(JSON.stringify(resp))}`;
+        }
+      } catch (err) {
+        submitStatusEl.innerHTML = `<span class="pill bad">Submit error</span> ${escapeHtml(String(err))}`;
+      } finally {
+        gradeBtn.disabled = false;
+      }
+    });
+
+    // ---------- MODAL + BUTTONS ----------
+    editStudentBtn.addEventListener("click", () => {
+      const s = getStudent();
+      nameInput.value = s.name;
+      idInput.value = s.studentId;
+      showModal();
+    });
+
+    saveStudentBtn.addEventListener("click", () => {
+      const name = nameInput.value.trim();
+      const sid = idInput.value.trim();
+      if (!name || !sid) return alert("Please enter both Name and Student ID.");
+      setStudent(name, sid);
+      hideModal();
+    });
+
+    clearWorkBtn.addEventListener("click", () => {
+      if (!confirm("Clear your saved code for ALL labs on this browser?")) return;
+      for (const lab of labs) {
+        localStorage.removeItem(codeKey(lab.id));
+        localStorage.removeItem(triesKey(lab.id));
+      }
+      renderScoreBoard(null);
+      loadLab(labs[0].id);
+      alert("Saved work cleared.");
+    });
+
+    // ---------- INIT ----------
+    function initUI() {
+      populateLabSelect();
+      currentLabId = labs[0].id;
+      labSelect.value = currentLabId;
+      loadLab(currentLabId);
+      renderStudent();
+      renderScoreBoard(null);
+
+      const ss = getStudent();
+      if (!ss.name || !ss.studentId) showModal();
+    }
+
+    runBtn.disabled = true;
+    checkBtn.disabled = true;
+    gradeBtn.disabled = true;
+
+    initPyodide();
+    initUI();
+  </script>
+</body>
+</html>
